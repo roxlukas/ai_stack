@@ -1,0 +1,10 @@
+general_settings:
+  ollama_base_url: "http://ollama:11434"
+  store_model_in_db: true
+  store_prompts_in_spend_logs: true
+
+model_list:
+  - model_name: "*"
+    litellm_params:
+      model: "ollama/*"
+      api_base: ${OLLAMA_BASE_URL}

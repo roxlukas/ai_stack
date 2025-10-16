@@ -1,0 +1,16 @@
+model_list:
+  - model_name: anthropic/*
+    litellm_params:
+      model: anthropic/*
+  - model_name: openai/*
+    litellm_params:
+      model: openai/*
+
+
+litellm_settings:
+  callbacks: ["datadog_llm_observability"]
+  cache: true
+
+general_settings:
+  store_model_in_db: true
+  store_prompts_in_spend_logs: true

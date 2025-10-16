@@ -1,0 +1,118 @@
+version: "3.11"
+services:
+  proxy:
+    build:
+      context: .
+      args:
+        target: runtime
+    image: ghcr.io/berriai/litellm:main-stable
+    container_name: litellm_proxy
+    ports:
+      - "4000:4000" 
+    environment:
+      DATABASE_URL: "postgresql://llmproxy:zmienhaslo9090@db:5432/litellm"
+      STORE_MODEL_IN_DB: "True"
+    env_file:
+      - .env 
+    volumes:
+      - ./litellm_config.yaml:/app/config.yaml
+      - ./proxy_config.yaml:/app/litellm/proxy/proxy_config.yaml
+    command:
+      - "--config=/app/config.yaml"
+    depends_on:
+      - db  
+    healthcheck:  
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 http://localhost:4000/health/liveliness || exit 1" ]
+      interval: 30s  
+      timeout: 10s   
+      retries: 3     
+      start_period: 40s  
+
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    container_name: litellm_postgres
+    environment:
+      POSTGRES_DB: litellm
+      POSTGRES_USER: llmproxy
+      POSTGRES_PASSWORD: zmienhaslo9090
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Persists Postgres data across container restarts
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d litellm -U llmproxy"]
+      interval: 1s
+      timeout: 5s
+      retries: 10
+
+  prometheus:
+    image: prom/prometheus
+    container_name: litellm_prometheus
+    volumes:
+      - prometheus_data:/prometheus
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+    restart: unless-stopped
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: unless-stopped
+    ports:
+      - "3000:8080"
+    volumes:
+      - ./data/open-webui:/app/backend/data
+
+  ollama:
+    image: docker.io/ollama/ollama:latest
+    ports:
+      - 11434:11434
+    volumes:
+      - ./ollama/code:/code
+      - ./ollama/ollama:/root/.ollama
+    container_name: ollama
+    pull_policy: always
+    tty: true
+    restart: unless-stopped
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+      - OLLAMA_HOST=0.0.0.0
+    
+    # Add device access for AMD/Intel GPUs
+    devices:
+      - /dev/dri:/dev/dri
+    
+    group_add:
+      - video
+        #- render
+    
+        #    deploy:
+        #      resources:
+        #        reservations:
+        #          devices:
+        #            # NVIDIA GPUs
+        #            - driver: nvidia
+        #              count: all
+        #              capabilities: [gpu]
+        #            
+        #            # AMD GPUs
+        #            - driver: amd
+        #              count: all
+        #              capabilities: [gpu]
+        #            
+        #            # Intel GPUs
+        #            - driver: intel
+        #              count: all
+        #              capabilities: [gpu]
+
+volumes:
+  prometheus_data:
+    driver: local
+  postgres_data:
+    name: litellm_postgres_data
