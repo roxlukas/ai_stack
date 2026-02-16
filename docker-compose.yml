@@ -17,6 +17,7 @@ services:
     volumes:
       - ./litellm_config.yaml:/app/config.yaml
       - ./proxy_config.yaml:/app/litellm/proxy/proxy_config.yaml
+      - /home/lukas/ai_stack/wget/src/wget2:/bin/wget:ro
     command:
       - "--config=/app/config.yaml"
       - "--drop_params"
@@ -41,25 +42,25 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data # Persists Postgres data across container restarts
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d litellm -U llmproxy"]
-      interval: 1s
-      timeout: 5s
-      retries: 10
+        #    healthcheck: #this always fail because there is no wget
+        #      test: ["CMD-SHELL", "pg_isready -d litellm -U llmproxy"]
+        #      interval: 1s
+        #      timeout: 5s
+        #      retries: 10
 
-  prometheus:
-    image: prom/prometheus
-    container_name: litellm_prometheus
-    volumes:
-      - prometheus_data:/prometheus
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-    ports:
-      - "9090:9090"
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.path=/prometheus"
-      - "--storage.tsdb.retention.time=15d"
-    restart: unless-stopped
+        #  prometheus:
+        #    image: prom/prometheus
+        #    container_name: litellm_prometheus
+        #    volumes:
+        #      - prometheus_data:/prometheus
+        #      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+        #    ports:
+        #      - "9090:9090"
+        #    command:
+        #      - "--config.file=/etc/prometheus/prometheus.yml"
+        #      - "--storage.tsdb.path=/prometheus"
+        #      - "--storage.tsdb.retention.time=15d"
+        #    restart: unless-stopped
 
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
@@ -85,7 +86,7 @@ services:
       #- OLLAMA_KEEP_ALIVE=24h
       - OLLAMA_HOST=0.0.0.0
       - OLLAMA_VULKAN=1
-    # Use Vulkan to enable your Intel iGPU. Comment this out if you have nvidia GPU!
+
     # Add device access for AMD/Intel GPUs
     devices:
       - /dev/dri:/dev/dri
@@ -150,8 +151,6 @@ configs:
       log_level: INFO
 
 volumes:
-  prometheus_data:
-    driver: local
   postgres_data:
     name: litellm_postgres_data
   chroma_data:
